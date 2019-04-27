@@ -123,3 +123,105 @@ summary(fit.ll)
 deviance(fit.po)
 deviance(fit.ll)
 deviance(fit.npo)
+
+
+
+##Harry's code
+##Compute the probability of Y=3 using cumulative logit model
+rw <- winequality_red
+ww <- winequality_white
+rw$type <- 'red'
+ww$type <- 'white'
+aw <- data.frame(rbind(rw, ww))
+par(mar = c(8,4,4,4))
+round(cor(aw[-c(length(names(aw)), length(names(aw))-1)]),2)
+mm <- data.frame(model.matrix(~ factor(quality) + 0, aw))
+aw2 <- cbind(aw, mm)
+cols <- cbind(aw2$factor.quality.3, aw2$factor.quality.4, aw2$factor.quality.5, 
+              aw2$factor.quality.6, aw2$factor.quality.7, aw2$factor.quality.8, 
+              aw2$factor.quality.9)
+library(VGAM)
+fit.po <- vglm(cols ~ fixed.acidity + volatile.acidity + 
+                 residual.sugar + chlorides + free.sulfur.dioxide +
+                 total.sulfur.dioxide + density + pH +
+                 sulphates + alcohol + factor(type),
+               family=cumulative(parallel=TRUE), data=aw2)
+##Extract the coefficients of the cumulative logit model
+betahat<-coef(fit.po)[7:17]
+##Transform the list of estimated coefficients into a vector
+names(betahat)<-NULL
+##Combine the datasets
+rw1<-winequality_red
+ww1<-winequality_white
+aw1<-data.frame(rbind(rw1,ww1)) 
+aw1$quality<-NULL
+aw1$citric.acid<-NULL
+##Compute column means
+cms<-colMeans(aw1)
+names(cms)<-NULL
+cms[11]<-0
+##Use the formula to calculate the probability
+sum(betahat*cms)+coef(fit.po)[1]
+exp(sum(betahat*cms)+coef(fit.po)[1])
+prob3<-exp(sum(betahat*cms)+coef(fit.po)[1])/(1+exp(sum(betahat*cms)+coef(fit.po)[1]))
+
+##Conduct two-sample t-test to test the 
+##difference between the means of these two types of wine
+rw <- winequality_red
+ww <- winequality_white
+##Sample sizes
+nr<-length(rw$quality)
+nw<-length(ww$quality)
+##Compute the vecotr of the sample mean of each column
+meanr<-colMeans(rw)
+meanw<-colMeans(ww)
+##Compute the vecotr of the sample variance of each column
+varr<-sapply(rw, var)
+varw<-sapply(ww, var)
+##Compute the vecotr of the statistic of each column
+t<-(meanr-meanw)/sqrt(varr/nr+varw/nw)
+##Define the significance level
+alpha<-0.05
+##Degrees of freedom for each explanatory variable
+dfv<-(varr/nr+varw/nw)^2/((varr/nr)^2/(nr-1)+(varw/nw)^2/(nw-1))
+##Compute the vector of the critical value of each explanatory variable
+talpha<-qt(1-alpha/2, df=dfv)
+##Compare the statistics with the critical values
+abs(t)>talpha
+
+
+##Build a separate model for each dataset
+rw <- winequality_red
+ww <- winequality_white
+
+par(mar = c(8,4,4,4))
+round(cor(rw[-c(length(names(rw)), length(names(rw))-1)]),2)
+round(cor(ww[-c(length(names(ww)), length(names(ww))-1)]),2)
+##Some necessary changes to the datasets
+mmr <- data.frame(model.matrix(~ factor(quality) + 0, rw))
+mmw <- data.frame(model.matrix(~ factor(quality) + 0, ww))
+rw2 <- cbind(rw, mmr)
+ww2 <- cbind(ww,mmw)
+rw2<-data.frame(rw2)
+ww2<-data.frame(ww2)
+
+rcols <- cbind(rw2$factor.quality.3, rw2$factor.quality.4, rw2$factor.quality.5, 
+              rw2$factor.quality.6, rw2$factor.quality.7, rw2$factor.quality.8)
+wcols<-cbind(ww2$factor.quality.3, ww2$factor.quality.4, ww2$factor.quality.5, 
+             ww2$factor.quality.6, ww2$factor.quality.7, ww2$factor.quality.8,ww2$factor.quality.9)
+library(VGAM)
+##Fit the model for the red wine
+rfit.po <- vglm(rcols ~ fixed.acidity + volatile.acidity + citric.acid +
+                 residual.sugar + chlorides + free.sulfur.dioxide +
+                 total.sulfur.dioxide + density + pH +
+                 sulphates + alcohol,
+               family=cumulative(parallel=TRUE), data=rw2)
+
+##Fit the model for the white wine
+wfit.po<-vglm(wcols ~ fixed.acidity + volatile.acidity + citric.acid +
+                residual.sugar + chlorides + free.sulfur.dioxide +
+                total.sulfur.dioxide + density + pH +
+                sulphates + alcohol,
+              family=cumulative(parallel=TRUE), data=ww2)
+summary(rfit.po)
+summary(wfit.po)
